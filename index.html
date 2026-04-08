@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Tic Tac Toe</title>
+
+<style>
+body{
+    background:#f4fbf9;
+    font-family:Segoe UI, sans-serif;
+    text-align:center;
+    color:#2f4f4f;
+}
+
+h1{
+    margin-top:30px;
+    font-size:32px;
+}
+
+.mode-buttons button{
+    background:#a8e6cf;
+    border:none;
+    padding:8px 20px;
+    margin:8px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:600;
+}
+
+.mode-buttons button:hover{
+    background:#81d4fa;
+}
+
+.board-container{
+    position:relative;
+    width:320px;
+    margin:30px auto;
+}
+
+.board{
+    display:grid;
+    grid-template-columns:repeat(3,100px);
+    gap:10px;
+}
+
+.cell{
+    width:100px;
+    height:100px;
+    background:#d0f0fd;
+    border-radius:10px;
+    font-size:36px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    cursor:pointer;
+}
+
+.cell:hover{
+    background:#b2ebf2;
+}
+
+#line{
+    position:absolute;
+    height:4px;
+    background:#2f4f4f;
+    width:0;
+    top:0;
+    left:0;
+    transform-origin:left center;
+    transition:all 0.4s ease;
+}
+
+#message{
+    margin-top:10px;
+    min-height:25px;
+}
+
+.scoreboard{
+    margin-top:10px;
+}
+
+.play-again{
+    display:none;
+    margin-top:15px;
+    padding:8px 18px;
+    background:#81d4fa;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:600;
+}
+
+.play-again:hover{
+    background:#4fc3f7;
+}
+</style>
+</head>
+<body>
+
+<h1>TIC TAC TOE</h1>
+
+<div class="mode-buttons">
+    <button onclick="setMode('two')">2 PLAYER</button>
+    <button onclick="setMode('computer')">YOU VS 🖥️ </button>
+</div>
+
+<div class="board-container">
+    <div class="board" id="board"></div>
+    <div id="line"></div>
+</div>
+
+<div id="message">Select a mode to start</div>
+
+<div class="scoreboard">
+    <p id="score"></p>
+</div>
+
+<button class="play-again" id="playAgainBtn" onclick="playAgain()">Play Again</button>
+
+<script>
+
+let board=["","","","","","","","",""];
+let currentPlayer="X";
+let gameActive=false;
+let mode="";
+
+let playerWins=parseInt(localStorage.getItem("playerWins"))||0;
+let computerWins=parseInt(localStorage.getItem("computerWins"))||0;
+let twoPlayerWins=parseInt(localStorage.getItem("twoPlayerWins"))||0;
+
+const boardElement=document.getElementById("board");
+const message=document.getElementById("message");
+const score=document.getElementById("score");
+const line=document.getElementById("line");
+const playAgainBtn=document.getElementById("playAgainBtn");
+
+function setMode(m){
+    mode=m;
+    gameActive=true;
+    message.innerText="Game Started!";
+    playAgainBtn.style.display="none";
+    resetBoardOnly();
+    updateScore();
+}
+
+function createBoard(){
+    boardElement.innerHTML="";
+    board.forEach((cell,i)=>{
+        const div=document.createElement("div");
+        div.classList.add("cell");
+        div.addEventListener("click",()=>handleClick(i));
+        div.innerText=cell;
+        boardElement.appendChild(div);
+    });
+}
+
+function handleClick(i){
+    if(!gameActive) return;
+    if(board[i]!=="" ) return;
+
+    board[i]=currentPlayer;
+    createBoard();
+
+    if(checkWinner(currentPlayer)){
+        endGame(currentPlayer);
+        return;
+    }
+
+    if(!board.includes("")){
+        endGame(null);
+        return;
+    }
+
+    if(mode==="computer"){
+        currentPlayer="O";
+        message.innerText="AI thinking...";
+        setTimeout(computerMove,500);
+    }else{
+        currentPlayer=currentPlayer==="X"?"O":"X";
+    }
+}
+
+function computerMove(){
+    let move=getBestMove();
+
+    board[move]="O";
+    createBoard();
+
+    if(checkWinner("O")){
+        endGame("O");
+        return;
+    }
+
+    if(!board.includes("")){
+        endGame(null);
+        return;
+    }
+
+    message.innerText="";
+    currentPlayer="X";
+}
+
+function getBestMove(){
+    let bestScore=-Infinity;
+    let move;
+
+    for(let i=0;i<9;i++){
+        if(board[i]===""){
+            board[i]="O";
+            let scoreVal=minimax(board,false);
+            board[i]="";
+            if(scoreVal>bestScore){
+                bestScore=scoreVal;
+                move=i;
+            }
+        }
+    }
+    return move;
+}
+
+function minimax(newBoard,isMax){
+    if(checkWinnerSimple("O",newBoard)) return 10;
+    if(checkWinnerSimple("X",newBoard)) return -10;
+    if(!newBoard.includes("")) return 0;
+
+    if(isMax){
+        let best=-Infinity;
+        for(let i=0;i<9;i++){
+            if(newBoard[i]===""){
+                newBoard[i]="O";
+                best=Math.max(best,minimax(newBoard,false));
+                newBoard[i]="";
+            }
+        }
+        return best;
+    }else{
+        let best=Infinity;
+        for(let i=0;i<9;i++){
+            if(newBoard[i]===""){
+                newBoard[i]="X";
+                best=Math.min(best,minimax(newBoard,true));
+                newBoard[i]="";
+            }
+        }
+        return best;
+    }
+}
+
+function checkWinner(player){
+    const wins=[
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+    ];
+
+    for(let combo of wins){
+        if(combo.every(i=>board[i]===player)){
+            drawLine(combo);
+            return true;
+        }
+    }
+    return false;
+}
+
+function checkWinnerSimple(player,b){
+    const wins=[[0,1,2],[3,4,5],[6,7,8],
+                [0,3,6],[1,4,7],[2,5,8],
+                [0,4,8],[2,4,6]];
+    return wins.some(combo=>combo.every(i=>b[i]===player));
+}
+
+function drawLine(combo){
+    const positions={
+        "0,1,2":{top:50,left:10,rotate:0},
+        "3,4,5":{top:160,left:10,rotate:0},
+        "6,7,8":{top:270,left:10,rotate:0},
+        "0,3,6":{top:10,left:50,rotate:90},
+        "1,4,7":{top:10,left:160,rotate:90},
+        "2,5,8":{top:10,left:270,rotate:90},
+        "0,4,8":{top:10,left:10,rotate:45},
+        "2,4,6":{top:10,left:290,rotate:-45}
+    };
+
+    const pos=positions[combo.toString()];
+    line.style.width="300px";
+    line.style.top=pos.top+"px";
+    line.style.left=pos.left+"px";
+    line.style.transform="rotate("+pos.rotate+"deg)";
+}
+
+function endGame(winner){
+    gameActive=false;
+
+    if(winner){
+        message.innerText=winner+" WINS";
+        if(mode==="two"){
+            twoPlayerWins++;
+            localStorage.setItem("twoPlayerWins",twoPlayerWins);
+        }else{
+            if(winner==="X"){
+                playerWins++;
+                localStorage.setItem("playerWins",playerWins);
+            }else{
+                computerWins++;
+                localStorage.setItem("computerWins",computerWins);
+            }
+        }
+    }else{
+        message.innerText="DRAW";
+    }
+
+    updateScore();
+    playAgainBtn.style.display="inline-block";
+}
+
+function updateScore(){
+    if(mode==="two"){
+        score.innerText="TOTAL WINS: "+twoPlayerWins;
+    }else{
+        score.innerText="PLAYER: "+playerWins+" | 🖥️: "+computerWins;
+    }
+}
+
+function playAgain(){
+    resetBoardOnly();
+    playAgainBtn.style.display="none";
+    message.innerText="New Game Started!";
+    gameActive=true;
+}
+
+function resetBoardOnly(){
+    board=["","","","","","","","",""];
+    currentPlayer="X";
+    line.style.width="0";
+    createBoard();
+}
+
+createBoard();
+updateScore();
+
+</script>
+</body>
+</html>
